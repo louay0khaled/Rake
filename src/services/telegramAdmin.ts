@@ -733,15 +733,37 @@ async function approveCharge(chatId: string, chargeId: string, isDouble: boolean
     return;
   }
 
-  // استخدام AdminDB لتحديث الرصيد فعلياً
+  // استخدام AdminDB لتحديث الرصيد فعلياً وحفظ الطلب في localStorage
   const userIdNum = parseInt(charge.data.userId);
   const finalAmount = isDouble ? charge.data.amount * 2 : charge.data.amount;
   
-  const success = AdminDB.updateBalance(userIdNum, finalAmount, 'credit');
+  // إنشاء طلب في AdminDB إذا لم يكن موجوداً
+  const requestId = parseInt(chargeId.split('_')[1]) || Date.now();
   
-  if (!success) {
-    await sendMessage(chatId, "❌ حدث خطأ أثناء معالجة الطلب");
-    return;
+  // تحديث حالة الطلب في AdminDB (سيقوم تلقائياً بتحديث الرصيد)
+  const requests = AdminDB.getRequests();
+  const existingRequest = requests.find((r: any) => r.id === requestId || r.transactionId === charge.data.transactionId);
+  
+  if (existingRequest) {
+    // تحديث الطلب الموجود
+    AdminDB.updateRequestStatus(existingRequest.id, 'approved');
+  } else {
+    // إضافة طلب جديد ثم الموافقة عليه
+    AdminDB.addRequest({
+      type: 'deposit',
+      userId: userIdNum,
+      userName: charge.data.userName,
+      amount: charge.data.amount,
+      transactionId: charge.data.transactionId,
+      bonusMultiplier: isDouble ? 2 : 1,
+      status: 'pending'
+    });
+    // الحصول على آخر طلب وتحديث حالته
+    const newRequests = AdminDB.getRequests();
+    const newRequest = newRequests[newRequests.length - 1];
+    if (newRequest) {
+      AdminDB.updateRequestStatus(newRequest.id, 'approved');
+    }
   }
 
   // تحديث حالة الطلب محلياً
@@ -815,15 +837,37 @@ async function approveWithdrawal(chatId: string, withdrawalId: string): Promise<
     return;
   }
 
-  // استخدام AdminDB لخصم المبلغ من الرصيد
+  // استخدام AdminDB لخصم المبلغ من الرصيد وحفظ الطلب في localStorage
   const userIdNum = parseInt(withdrawal.data.userId);
   const amount = parseFloat(withdrawal.data.amount);
   
-  const success = AdminDB.updateBalance(userIdNum, amount, 'debit');
+  // إنشاء طلب في AdminDB إذا لم يكن موجوداً
+  const requestId = parseInt(withdrawalId.split('_')[1]) || Date.now();
   
-  if (!success) {
-    await sendMessage(chatId, "❌ حدث خطأ: رصيد المستخدم غير كافٍ");
-    return;
+  // تحديث حالة الطلب في AdminDB (سيقوم تلقائياً بخصم الرصيد)
+  const requests = AdminDB.getRequests();
+  const existingRequest = requests.find((r: any) => r.id === requestId);
+  
+  if (existingRequest) {
+    // تحديث الطلب الموجود
+    AdminDB.updateRequestStatus(existingRequest.id, 'approved');
+  } else {
+    // إضافة طلب جديد ثم الموافقة عليه
+    AdminDB.addRequest({
+      type: 'withdraw',
+      userId: userIdNum,
+      userName: withdrawal.data.userName,
+      amount: amount,
+      shamCashNumber: withdrawal.data.shamCashNumber,
+      walletBalance: withdrawal.data.walletBalance,
+      status: 'pending'
+    });
+    // الحصول على آخر طلب وتحديث حالته
+    const newRequests = AdminDB.getRequests();
+    const newRequest = newRequests[newRequests.length - 1];
+    if (newRequest) {
+      AdminDB.updateRequestStatus(newRequest.id, 'approved');
+    }
   }
 
   // تحديث حالة الطلب محلياً
