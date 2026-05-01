@@ -1,10 +1,4 @@
-import { 
-  approveDeposit, 
-  rejectDeposit, 
-  approveWithdrawal as dbApproveWithdrawal, 
-  rejectWithdrawal as dbRejectWithdrawal,
-  getUserBalance 
-} from './mockDB';
+import AdminDB from './AdminDB';
 
 // ======================================================
 // Telegram Admin Bot Service - خدمة بوت إدارة المشرفين
@@ -739,16 +733,17 @@ async function approveCharge(chatId: string, chargeId: string, isDouble: boolean
     return;
   }
 
-  // استخدام دالة قاعدة البيانات لتحديث الرصيد فعلياً
-  const success = approveDeposit(chargeId, isDouble);
+  // استخدام AdminDB لتحديث الرصيد فعلياً
+  const userIdNum = parseInt(charge.data.userId);
+  const finalAmount = isDouble ? charge.data.amount * 2 : charge.data.amount;
+  
+  const success = AdminDB.updateBalance(userIdNum, finalAmount, 'credit');
   
   if (!success) {
     await sendMessage(chatId, "❌ حدث خطأ أثناء معالجة الطلب");
     return;
   }
 
-  const finalAmount = isDouble ? charge.data.amount * 2 : charge.data.amount;
-  
   // تحديث حالة الطلب محلياً
   charge.status = "approved";
   
@@ -769,8 +764,9 @@ ${isDouble ? `🎁 <b>المكافأة:</b> ${(charge.data.amount).toLocaleStrin
     console.error("Failed to notify user:", e);
   }
 
-  // جلب الرصيد الجديد
-  const newBalance = getUserBalance(charge.data.userId);
+  // جلب الرصيد الجديد من AdminDB
+  const user = AdminDB.getUser(userIdNum);
+  const newBalance = user ? user.balance : finalAmount;
   
   await sendMessage(chatId, `✅ <b>تمت الموافقة بنجاح!</b>\n\nالمستخدم: ${charge.data.userName}\nالمبلغ المضاف: ${finalAmount.toLocaleString("ar-SY")} ل.س.ج\nالرصيد الجديد: ${newBalance.toLocaleString("ar-SY")} ل.س.ج\n${isDouble ? '(مع المكافأة 2x)' : ''}`);
   
@@ -784,13 +780,8 @@ async function rejectCharge(chatId: string, chargeId: string): Promise<void> {
     return;
   }
 
-  // استخدام دالة قاعدة البيانات لرفض الشحن
-  const success = rejectDeposit(chargeId);
-  
-  if (!success) {
-    await sendMessage(chatId, "❌ حدث خطأ أثناء معالجة طلب الشحن");
-    return;
-  }
+  // تحديث حالة الطلب محلياً فقط (لا حاجة للخصم لأن الرصيد لم يُضف بعد)
+  charge.status = "rejected";
   
   // إشعار المستخدم بالرفض
   const userNotifyText = `
@@ -824,13 +815,19 @@ async function approveWithdrawal(chatId: string, withdrawalId: string): Promise<
     return;
   }
 
-  // استخدام دالة قاعدة البيانات للموافقة على السحب
-  const success = dbApproveWithdrawal(withdrawalId);
+  // استخدام AdminDB لخصم المبلغ من الرصيد
+  const userIdNum = parseInt(withdrawal.data.userId);
+  const amount = parseFloat(withdrawal.data.amount);
+  
+  const success = AdminDB.updateBalance(userIdNum, amount, 'debit');
   
   if (!success) {
-    await sendMessage(chatId, "❌ حدث خطأ أثناء معالجة طلب السحب");
+    await sendMessage(chatId, "❌ حدث خطأ: رصيد المستخدم غير كافٍ");
     return;
   }
+
+  // تحديث حالة الطلب محلياً
+  withdrawal.status = "approved";
 
   // إشعار المستخدم بالموافقة
   const userNotifyText = `
@@ -861,13 +858,8 @@ async function rejectWithdrawal(chatId: string, withdrawalId: string): Promise<v
     return;
   }
 
-  // استخدام دالة قاعدة البيانات لرفض السحب (سيعيد المبلغ للرصيد)
-  const success = dbRejectWithdrawal(withdrawalId);
-  
-  if (!success) {
-    await sendMessage(chatId, "❌ حدث خطأ أثناء معالجة طلب السحب");
-    return;
-  }
+  // تحديث حالة الطلب محلياً فقط (لا خصم لأن السحب لم يتم بعد)
+  withdrawal.status = "rejected";
 
   // إشعار المستخدم بالرفض
   const userNotifyText = `
@@ -875,7 +867,6 @@ async function rejectWithdrawal(chatId: string, withdrawalId: string): Promise<v
 ━━━━━━━━━━━━━━━━━━━━
 💰 <b>مبلغ السحب:</b> ${withdrawal.data.amount.toLocaleString("ar-SY")} ل.س.ج
 ━━━━━━━━━━━━━━━━━━━━
-تم إعادة المبلغ إلى رصيدك.
 يرجى التحقق من رصيدك أو التواصل مع الدعم للمزيد من المعلومات.
 `;
   
@@ -885,7 +876,7 @@ async function rejectWithdrawal(chatId: string, withdrawalId: string): Promise<v
     console.error("Failed to notify user:", e);
   }
 
-  await sendMessage(chatId, `❌ <b>تم رفض طلب السحب</b>\n\nالمستخدم: ${withdrawal.data.userName}\nتم إعادة المبلغ للرصيد.`);
+  await sendMessage(chatId, `❌ <b>تم رفض طلب السحب</b>\n\nالمستخدم: ${withdrawal.data.userName}`);
   
   await showWithdrawalsList(chatId);
 }
