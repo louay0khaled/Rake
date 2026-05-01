@@ -65,6 +65,9 @@ interface AdminState {
 
 let adminStates: Map<string, AdminState> = new Map();
 
+// علم لمنع رسائل الترحيب المتكررة
+let welcomeSent = false;
+
 // ======================================================
 // دوال مساعدة للاتصال بتيليجرام API
 // ======================================================
@@ -733,6 +736,11 @@ async function approveCharge(chatId: string, chargeId: string, isDouble: boolean
   // تحديث حالة الطلب
   charge.status = "approved";
   
+  // حفظ في localStorage للمزامنة مع الموقع
+  if (typeof window !== "undefined") {
+    localStorage.setItem(`charge_${chargeId}`, JSON.stringify(charge));
+  }
+  
   // إشعار المستخدم بالموافقة
   const userNotifyText = `
 ✅ <b>تم الموافقة على طلب الشحن!</b>
@@ -797,6 +805,11 @@ async function approveWithdrawal(chatId: string, withdrawalId: string): Promise<
   }
 
   withdrawal.status = "approved";
+  
+  // حفظ في localStorage للمزامنة مع الموقع
+  if (typeof window !== "undefined") {
+    localStorage.setItem(`withdraw_${withdrawalId}`, JSON.stringify(withdrawal));
+  }
   
   // إشعار المستخدم بالموافقة
   const userNotifyText = `
@@ -956,6 +969,15 @@ async function processAdminMessage(message: any): Promise<void> {
         // تحديث رقم شام كاش
         shamCashNumber = text.trim();
         adminStates.delete(adminId);
+        
+        // مزامنة الرقم مع خدمة telegram
+        try {
+          const { updateShamCashNumber } = await import('./telegram');
+          updateShamCashNumber(shamCashNumber);
+        } catch (e) {
+          console.error("Failed to sync ShamCash number:", e);
+        }
+        
         await sendMessage(chatId, `✅ <b>تم تغيير رقم شام كاش بنجاح!</b>\n\nالرقم الجديد: <code>${shamCashNumber}</code>\n\nسيتم استخدام هذا الرقم في جميع عمليات السحب والشحن.`);
         await showSettingsMenu(chatId);
         break;
@@ -1080,12 +1102,22 @@ async function handleCommand(chatId: string, userId: string, command: string): P
 export async function initAdminBot(): Promise<void> {
   console.log("🎛️ Initializing Admin Bot...");
   
+  // تحميل رقم شام كاش من localStorage إذا وجد
+  if (typeof window !== "undefined") {
+    const stored = localStorage.getItem("shamCashNumber");
+    if (stored) {
+      shamCashNumber = stored;
+    }
+  }
+  
   // بدء البوت للاستماع للتحديثات
   await startBot();
   
-  // إرسال رسالة ترحيبية للمشرفين
-  for (const adminId of ADMIN_IDS) {
-    const welcomeText = `
+  // إرسال رسالة ترحيبية للمشرفين مرة واحدة فقط
+  if (!welcomeSent) {
+    welcomeSent = true;
+    for (const adminId of ADMIN_IDS) {
+      const welcomeText = `
 🎛️ <b>نظام إدارة سوق الشام جاهز!</b>
 ━━━━━━━━━━━━━━━━━━━━
 مرحباً بك في لوحة التحكم المتقدمة
@@ -1105,11 +1137,12 @@ export async function initAdminBot(): Promise<void> {
 ━━━━━━━━━━━━━━━━━━━━
 🛒 <i>سوق الشام الإلكتروني</i>
 `;
-    
-    const keyboard: any[][] = [
-      [{ text: "🎛️ فتح لوحة التحكم", callback_data: "admin_menu" }]
-    ];
-    await sendInlineKeyboard(adminId, welcomeText, keyboard);
+      
+      const keyboard: any[][] = [
+        [{ text: "🎛️ فتح لوحة التحكم", callback_data: "admin_menu" }]
+      ];
+      await sendInlineKeyboard(adminId, welcomeText, keyboard);
+    }
   }
 }
 

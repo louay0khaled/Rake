@@ -7,8 +7,13 @@ const BOT_TOKEN = "8324781459:AAHJ5RWpHSGgmX2P3k3AUgB4juQW7P_Bsyc";
 const ADMIN_IDS = ["7254003723", "6288453737"];
 const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
 
-// رقم شام كاش - يمكن تحديثه من لوحة المشرفين
+// رقم شام كاش - يتم مزامنته مع telegramAdmin
 let SHAM_CASH_NUMBER = "0991234567";
+
+// دالة لتحديث الرقم من خدمة المشرفين
+export function syncShamCashNumberFromAdmin(number: string): void {
+  SHAM_CASH_NUMBER = number;
+}
 
 export interface TelegramMessage {
   chat_id: string;
@@ -19,10 +24,21 @@ export interface TelegramMessage {
 // تحديث رقم شام كاش
 export function updateShamCashNumber(newNumber: string): void {
   SHAM_CASH_NUMBER = newNumber;
+  // حفظ في localStorage للمزامنة
+  if (typeof window !== "undefined") {
+    localStorage.setItem("shamCashNumber", newNumber);
+  }
 }
 
 // الحصول على رقم شام كاش الحالي
 export function getShamCashNumber(): string {
+  // محاولة القراءة من localStorage أولاً
+  if (typeof window !== "undefined") {
+    const stored = localStorage.getItem("shamCashNumber");
+    if (stored) {
+      SHAM_CASH_NUMBER = stored;
+    }
+  }
   return SHAM_CASH_NUMBER;
 }
 
