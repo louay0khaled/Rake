@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { X, Wallet, ArrowUpRight, ArrowDownLeft, Copy, CheckCircle, AlertCircle, MessageCircle } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 import { notifyWalletChargeRequest, notifyWithdrawalRequest, getShamCashNumber } from "../services/telegram";
-import { addPendingRequest, handleUserMessage as handleAdminMessage } from "../services/telegramAdmin";
+import { addPendingRequest } from "../services/telegramAdmin";
 import toast from "react-hot-toast";
 
 interface WalletModalProps {

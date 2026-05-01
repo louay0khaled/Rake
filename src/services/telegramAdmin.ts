@@ -60,7 +60,7 @@ let conversations: Map<string, Conversation> = new Map();
 let pendingRequests: Map<string, PendingRequest> = new Map();
 let storedProducts: Map<string, StoredProduct> = new Map();
 let shamCashNumber: string = "0991234567";
-let systemSettings: Map<string, string> = new Map();
+// let systemSettings: Map<string, string> = new Map(); // Unused for now
 
 // تتبع حالات المشرفين النشطة
 interface AdminState {
@@ -436,7 +436,7 @@ async function openConversation(chatId: string, userId: string): Promise<void> {
   await sendInlineKeyboard(chatId, messagesText, keyboard);
 }
 
-async function broadcastMessage(adminChatId: string): Promise<void> {
+async function _broadcastMessage(adminChatId: string): Promise<void> {
   const text = `
 📢 <b>إرسال رسالة جماعية</b>
 ━━━━━━━━━━━━━━━━━━━━
@@ -769,10 +769,19 @@ ${isDouble ? `🎁 <b>المكافأة:</b> ${(charge.data.amount).toLocaleStrin
     console.error("Failed to notify user:", e);
   }
 
-  // جلب الرصيد الجديد
+
+  // جلب الرصيد الجديد من قاعدة البيانات المحلية
   const newBalance = getUserBalance(charge.data.userId);
-  
+
+  // إطلاق حدث لتحديث واجهة المستخدم فوراً
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('balanceUpdated', { 
+      detail: { userId: charge.data.userId, newBalance } 
+    }));
+  }
+
   await sendMessage(chatId, `✅ <b>تمت الموافقة بنجاح!</b>\n\nالمستخدم: ${charge.data.userName}\nالمبلغ المضاف: ${finalAmount.toLocaleString("ar-SY")} ل.س.ج\nالرصيد الجديد: ${newBalance.toLocaleString("ar-SY")} ل.س.ج\n${isDouble ? '(مع المكافأة 2x)' : ''}`);
+
   
   await showChargesList(chatId);
 }
@@ -849,7 +858,19 @@ async function approveWithdrawal(chatId: string, withdrawalId: string): Promise<
     console.error("Failed to notify user:", e);
   }
 
-  await sendMessage(chatId, `✅ <b>تمت الموافقة على السحب بنجاح!</b>\n\nالمستخدم: ${withdrawal.data.userName}\nالمبلغ: ${withdrawal.data.amount.toLocaleString("ar-SY")} ل.س.ج`);
+
+  // جلب الرصيد الجديد بعد السحب
+  const newBalance = getUserBalance(withdrawal.data.userId);
+
+  // إطلاق حدث لتحديث واجهة المستخدم فوراً
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('balanceUpdated', { 
+      detail: { userId: withdrawal.data.userId, newBalance } 
+    }));
+  }
+
+  await sendMessage(chatId, `✅ <b>تمت الموافقة على السحب بنجاح!</b>\n\nالمستخدم: ${withdrawal.data.userName}\nالمبلغ: ${withdrawal.data.amount.toLocaleString("ar-SY")} ل.س.ج\nالرصيد الجديد: ${newBalance.toLocaleString("ar-SY")} ل.س.ج`);
+
   
   await showWithdrawalsList(chatId);
 }
@@ -891,7 +912,7 @@ async function rejectWithdrawal(chatId: string, withdrawalId: string): Promise<v
 }
 
 let isPolling = false;
-let pollingInterval: NodeJS.Timeout | null = null;
+let _pollingInterval: NodeJS.Timeout | null = null; // Reserved for future use
 
 // بدء استقبال التحديثات من تيليجرام (Polling)
 export async function startBot(): Promise<void> {
