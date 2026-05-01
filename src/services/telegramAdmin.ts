@@ -54,6 +54,17 @@ let storedProducts: Map<string, StoredProduct> = new Map();
 let shamCashNumber: string = "0991234567";
 let systemSettings: Map<string, string> = new Map();
 
+// تتبع حالات المشرفين النشطة
+interface AdminState {
+  currentAction: string | null;
+  targetUserId?: string; // للمحادثات
+  waitingForInput?: boolean;
+  inputStep?: number; // لخطوات إدخال البيانات
+  inputData?: any; // لتخزين البيانات المؤقتة
+}
+
+let adminStates: Map<string, AdminState> = new Map();
+
 // ======================================================
 // دوال مساعدة للاتصال بتيليجرام API
 // ======================================================
@@ -519,6 +530,13 @@ export async function handleUserMessage(message: any): Promise<void> {
   const userName = `${message.from.first_name || ""} ${message.from.last_name || ""}`.trim() || "مستخدم";
   const text = message.text || "";
 
+  // التحقق مما إذا كان المستخدم مشرفاً
+  if (ADMIN_IDS.includes(userId)) {
+    // هذا مشرف - معالجة رسالته كإجراء إداري وليس كمحادثة مستخدم
+    await processAdminMessage(message);
+    return;
+  }
+
   // حفظ/تحديث المحادثة
   if (!conversations.has(userId)) {
     conversations.set(userId, {
@@ -619,21 +637,68 @@ export async function handleCallbackQuery(callbackQuery: any): Promise<void> {
       const chargeId = data.replace("charge_view_", "");
       await showChargeDetails(chatId, chargeId);
       break;
+    
+    case data.startsWith("charge_approve_2x_"):
+      const approve2xId = data.replace("charge_approve_2x_", "");
+      await approveCharge(chatId, approve2xId, true);
+      break;
+    
+    case data.startsWith("charge_approve_1x_"):
+      const approve1xId = data.replace("charge_approve_1x_", "");
+      await approveCharge(chatId, approve1xId, false);
+      break;
+    
+    case data.startsWith("charge_reject_"):
+      const rejectChargeId = data.replace("charge_reject_", "");
+      await rejectCharge(chatId, rejectChargeId);
+      break;
 
     // طلبات السحب
     case data.startsWith("withdraw_view_"):
       const withdrawId = data.replace("withdraw_view_", "");
       await showWithdrawalDetails(chatId, withdrawId);
       break;
+    
+    case data.startsWith("withdraw_approve_"):
+      const approveWithdrawId = data.replace("withdraw_approve_", "");
+      await approveWithdrawal(chatId, approveWithdrawId);
+      break;
+    
+    case data.startsWith("withdraw_reject_"):
+      const rejectWithdrawId = data.replace("withdraw_reject_", "");
+      await rejectWithdrawal(chatId, rejectWithdrawId);
+      break;
 
     // المحادثات
     case data.startsWith("chat_open_"):
       const targetUserId = data.replace("chat_open_", "");
+      // حفظ حالة المشرف للرد على هذا المستخدم
+      adminStates.set(adminId, {
+        currentAction: `reply_to_user_${targetUserId}`,
+        targetUserId,
+        waitingForInput: true,
+      });
       await openConversation(chatId, targetUserId);
+      await sendMessage(chatId, "📝 <b>اكتب رسالتك الآن:</b>\n\n(أرسل الرسالة وسيتم توصيلها للمستخدم فوراً)\n\nأرسل \"إلغاء\" للعودة.");
+      break;
+    
+    case data.startsWith("chat_user_"):
+      const chatUserId = data.replace("chat_user_", "");
+      adminStates.set(adminId, {
+        currentAction: `reply_to_user_${chatUserId}`,
+        targetUserId: chatUserId,
+        waitingForInput: true,
+      });
+      await sendMessage(chatId, "📝 <b>اكتب رسالتك للمستخدم:</b>\n\nأرسل \"إلغاء\" للعودة.");
       break;
 
     // الإعدادات
     case data === "settings_shamcash":
+      // تعيين حالة انتظار إدخال الرقم الجديد
+      adminStates.set(adminId, {
+        currentAction: "change_shamcash",
+        waitingForInput: true,
+      });
       await changeShamCashNumber(chatId);
       break;
 
@@ -650,6 +715,138 @@ export async function notifyAllAdmins(text: string): Promise<void> {
   for (const adminId of ADMIN_IDS) {
     await sendMessage(adminId, text);
   }
+}
+
+// ======================================================
+// معالجة طلبات الشحن
+// ======================================================
+
+async function approveCharge(chatId: string, chargeId: string, isDouble: boolean): Promise<void> {
+  const charge = pendingRequests.get(chargeId);
+  if (!charge) {
+    await sendMessage(chatId, "❌ الطلب غير موجود");
+    return;
+  }
+
+  const finalAmount = isDouble ? charge.data.amount * 2 : charge.data.amount;
+  
+  // تحديث حالة الطلب
+  charge.status = "approved";
+  
+  // إشعار المستخدم بالموافقة
+  const userNotifyText = `
+✅ <b>تم الموافقة على طلب الشحن!</b>
+━━━━━━━━━━━━━━━━━━━━
+💰 <b>المبلغ الأصلي:</b> ${charge.data.amount.toLocaleString("ar-SY")} ل.س.ج
+${isDouble ? `🎁 <b>المكافأة:</b> ${(charge.data.amount).toLocaleString("ar-SY")} ل.س.ج\n` : ''}
+💵 <b>الإجمالي المضاف:</b> ${finalAmount.toLocaleString("ar-SY")} ل.س.ج
+━━━━━━━━━━━━━━━━━━━━
+شكراً لاستخدامك سوق الشام!
+`;
+  
+  try {
+    await sendMessage(charge.data.userId, userNotifyText);
+  } catch (e) {
+    console.error("Failed to notify user:", e);
+  }
+
+  await sendMessage(chatId, `✅ <b>تمت الموافقة بنجاح!</b>\n\nالمستخدم: ${charge.data.userName}\nالمبلغ المضاف: ${finalAmount.toLocaleString("ar-SY")} ل.س.ج\n${isDouble ? '(مع المكافأة 2x)' : ''}`);
+  
+  await showChargesList(chatId);
+}
+
+async function rejectCharge(chatId: string, chargeId: string): Promise<void> {
+  const charge = pendingRequests.get(chargeId);
+  if (!charge) {
+    await sendMessage(chatId, "❌ الطلب غير موجود");
+    return;
+  }
+
+  charge.status = "rejected";
+  
+  // إشعار المستخدم بالرفض
+  const userNotifyText = `
+❌ <b>تم رفض طلب الشحن</b>
+━━━━━━━━━━━━━━━━━━━━
+💰 <b>المبلغ:</b> ${charge.data.amount.toLocaleString("ar-SY")} ل.س.ج
+🔢 <b>رقم التحويل:</b> <code>${charge.data.transactionId}</code>
+━━━━━━━━━━━━━━━━━━━━
+يرجى التأكد من صحة بيانات التحويل والمحاولة مرة أخرى.
+`;
+  
+  try {
+    await sendMessage(charge.data.userId, userNotifyText);
+  } catch (e) {
+    console.error("Failed to notify user:", e);
+  }
+
+  await sendMessage(chatId, `❌ <b>تم رفض الطلب</b>\n\nالمستخدم: ${charge.data.userName}`);
+  
+  await showChargesList(chatId);
+}
+
+// ======================================================
+// معالجة طلبات السحب
+// ======================================================
+
+async function approveWithdrawal(chatId: string, withdrawalId: string): Promise<void> {
+  const withdrawal = pendingRequests.get(withdrawalId);
+  if (!withdrawal) {
+    await sendMessage(chatId, "❌ الطلب غير موجود");
+    return;
+  }
+
+  withdrawal.status = "approved";
+  
+  // إشعار المستخدم بالموافقة
+  const userNotifyText = `
+✅ <b>تم الموافقة على طلب السحب!</b>
+━━━━━━━━━━━━━━━━━━━━
+💰 <b>مبلغ السحب:</b> ${withdrawal.data.amount.toLocaleString("ar-SY")} ل.س.ج
+📲 <b>رقم شام كاش:</b> <code>${withdrawal.data.shamCashNumber}</code>
+━━━━━━━━━━━━━━━━━━━━
+سيتم تحويل المبلغ خلال 24 ساعة.
+شكراً لاستخدامك سوق الشام!
+`;
+  
+  try {
+    await sendMessage(withdrawal.data.userId, userNotifyText);
+  } catch (e) {
+    console.error("Failed to notify user:", e);
+  }
+
+  await sendMessage(chatId, `✅ <b>تمت الموافقة على السحب بنجاح!</b>\n\nالمستخدم: ${withdrawal.data.userName}\nالمبلغ: ${withdrawal.data.amount.toLocaleString("ar-SY")} ل.س.ج`);
+  
+  await showWithdrawalsList(chatId);
+}
+
+async function rejectWithdrawal(chatId: string, withdrawalId: string): Promise<void> {
+  const withdrawal = pendingRequests.get(withdrawalId);
+  if (!withdrawal) {
+    await sendMessage(chatId, "❌ الطلب غير موجود");
+    return;
+  }
+
+  withdrawal.status = "rejected";
+  
+  // إشعار المستخدم بالرفض
+  const userNotifyText = `
+❌ <b>تم رفض طلب السحب</b>
+━━━━━━━━━━━━━━━━━━━━
+💰 <b>مبلغ السحب:</b> ${withdrawal.data.amount.toLocaleString("ar-SY")} ل.س.ج
+━━━━━━━━━━━━━━━━━━━━
+يرجى التحقق من رصيدك أو التواصل مع الدعم للمزيد من المعلومات.
+`;
+  
+  try {
+    await sendMessage(withdrawal.data.userId, userNotifyText);
+  } catch (e) {
+    console.error("Failed to notify user:", e);
+  }
+
+  await sendMessage(chatId, `❌ <b>تم رفض طلب السحب</b>\n\nالمستخدم: ${withdrawal.data.userName}`);
+  
+  await showWithdrawalsList(chatId);
 }
 
 let isPolling = false;
@@ -731,8 +928,85 @@ async function processMessage(message: any): Promise<void> {
     await handleCommand(chatId, userId, text);
   } else {
     // معالجة الرسائل العادية (للرد في المحادثات أو إدخال البيانات)
-    await handleUserMessage(message);
+    await processAdminMessage(message);
   }
+}
+
+// معالجة رسائل المشرفين (للتمييز بين إجراءات الإدارة ومحادثات المستخدمين)
+async function processAdminMessage(message: any): Promise<void> {
+  const chatId = message.chat.id.toString();
+  const adminId = message.from.id.toString();
+  const text = message.text || "";
+
+  // الحصول على حالة المشرف الحالية
+  const adminState = adminStates.get(adminId);
+
+  // إذا كان المشرف في انتظار إدخال (مثل تغيير رقم شام كاش)
+  if (adminState?.waitingForInput) {
+    if (text.toLowerCase() === "إلغاء" || text.toLowerCase() === "cancel") {
+      adminStates.delete(adminId);
+      await sendMessage(chatId, "✅ تم الإلغاء. عدت للقائمة الرئيسية.");
+      await showAdminMenu(chatId);
+      return;
+    }
+
+    // معالجة حسب نوع الإدخال المطلوب
+    switch (adminState.currentAction) {
+      case "change_shamcash":
+        // تحديث رقم شام كاش
+        shamCashNumber = text.trim();
+        adminStates.delete(adminId);
+        await sendMessage(chatId, `✅ <b>تم تغيير رقم شام كاش بنجاح!</b>\n\nالرقم الجديد: <code>${shamCashNumber}</code>\n\nسيتم استخدام هذا الرقم في جميع عمليات السحب والشحن.`);
+        await showSettingsMenu(chatId);
+        break;
+
+      default:
+        adminStates.delete(adminId);
+        await sendMessage(chatId, "❌ حالة غير معروفة. يرجى المحاولة مرة أخرى.");
+    }
+    return;
+  }
+
+  // إذا كان المشرف يرد في محادثة مع مستخدم
+  if (adminState?.currentAction?.startsWith("reply_to_user_")) {
+    const targetUserId = adminState.targetUserId;
+    if (targetUserId) {
+      // حفظ رسالة المشرف
+      const adminMessage: Message = {
+        id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        text,
+        from: "admin",
+        adminId,
+        timestamp: new Date().toISOString(),
+      };
+
+      const conv = conversations.get(targetUserId);
+      if (conv) {
+        conv.messages.push(adminMessage);
+        conv.lastActivity = Date.now();
+
+        // إرسال الرسالة للمستخدم
+        const userMsgText = `
+💬 <b>رسالة جديدة من الدعم الفني</b>
+━━━━━━━━━━━━━━━━━━━━
+${text}
+━━━━━━━━━━━━━━━━━━━━
+🛒 <i>سوق الشام الإلكتروني</i>
+`;
+        await sendMessage(targetUserId, userMsgText);
+        await sendMessage(chatId, "✅ تم إرسال رسالتك للمستخدم بنجاح.");
+        
+        // إعادة فتح المحادثة لعرض الرسالة الجديدة
+        await openConversation(chatId, targetUserId);
+      } else {
+        await sendMessage(chatId, "❌ المستخدم غير موجود.");
+      }
+    }
+    return;
+  }
+
+  // إذا لم يكن هناك حالة خاصة، تجاهل الرسالة أو إظهار مساعدة
+  await sendMessage(chatId, "ℹ️ استخدم الأزرار التفاعلية أو الأوامر للتنقل في لوحة التحكم.\n\nاستخدم /start لفتح القائمة الرئيسية.");
 }
 
 // معالجة الأوامر
