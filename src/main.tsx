@@ -1,15 +1,15 @@
-import { StrictMode, useEffect } from "react";
+import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App";
-import { initAdminBot } from "./services/telegramAdmin";
 
-// تهيئة بوت الإدارة عند بدء التطبيق
+// تهيئة بوت الإدارة عند بدء التطبيق (مرة واحدة فقط)
 if (typeof window !== "undefined") {
   // تأكد من أن الكود يعمل فقط في المتصفح
   const initBot = async () => {
     try {
       console.log("🚀 Initializing Telegram Admin Bot on startup...");
+      const { initAdminBot } = await import("./services/telegramAdmin");
       await initAdminBot();
       console.log("✅ Telegram Admin Bot initialized successfully!");
     } catch (error) {
@@ -17,7 +17,7 @@ if (typeof window !== "undefined") {
     }
   };
 
-  // تشغيل البوت بعد تحميل الصفحة
+  // تشغيل البوت بعد تحميل الصفحة (مرة واحدة فقط)
   setTimeout(initBot, 1000);
 }
 
