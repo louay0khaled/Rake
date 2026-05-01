@@ -1,14 +1,12 @@
 import React, { useState } from "react";
 import { X, Wallet, ArrowUpRight, ArrowDownLeft, Copy, CheckCircle, AlertCircle, MessageCircle } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
-import { notifyWalletChargeRequest, notifyWithdrawalRequest } from "../services/telegram";
+import { notifyWalletChargeRequest, notifyWithdrawalRequest, getShamCashNumber } from "../services/telegram";
 import toast from "react-hot-toast";
 
 interface WalletModalProps {
   onClose: () => void;
 }
-
-const SHAM_CASH_NUMBER = "0991234567"; // رقم شام كاش للتحويل
 
 const WalletModal: React.FC<WalletModalProps> = ({ onClose }) => {
   const { user } = useAuthStore();
@@ -21,12 +19,15 @@ const WalletModal: React.FC<WalletModalProps> = ({ onClose }) => {
   const [chargeLoading, setChargeLoading] = useState(false);
   const [withdrawLoading, setWithdrawLoading] = useState(false);
 
+  // الحصول على رقم شام كاش الحالي من الخدمة
+  const currentShamCashNumber = getShamCashNumber();
+
   if (!user) return null;
 
   const canWithdraw = user.walletBalance >= 500;
 
   const copyNumber = () => {
-    navigator.clipboard.writeText(SHAM_CASH_NUMBER);
+    navigator.clipboard.writeText(currentShamCashNumber);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
     toast.success("تم نسخ الرقم!");
@@ -268,7 +269,7 @@ const WalletModal: React.FC<WalletModalProps> = ({ onClose }) => {
                   حوّل المبلغ إلى رقم شام كاش التالي:
                 </div>
                 <div className="flex items-center justify-between p-3 rounded-xl" style={{ background: "rgba(0,0,0,0.3)" }}>
-                  <span className="font-bold text-lg" style={{ color: "#f0d080" }}>{SHAM_CASH_NUMBER}</span>
+                  <span className="font-bold text-lg" style={{ color: "#f0d080" }}>{currentShamCashNumber}</span>
                   <button
                     onClick={copyNumber}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all"

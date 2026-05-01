@@ -7,10 +7,23 @@ const BOT_TOKEN = "8324781459:AAHJ5RWpHSGgmX2P3k3AUgB4juQW7P_Bsyc";
 const ADMIN_IDS = ["7254003723", "6288453737"];
 const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
 
+// رقم شام كاش - يمكن تحديثه من لوحة المشرفين
+let SHAM_CASH_NUMBER = "0991234567";
+
 export interface TelegramMessage {
   chat_id: string;
   text: string;
   parse_mode?: "HTML" | "Markdown" | "MarkdownV2";
+}
+
+// تحديث رقم شام كاش
+export function updateShamCashNumber(newNumber: string): void {
+  SHAM_CASH_NUMBER = newNumber;
+}
+
+// الحصول على رقم شام كاش الحالي
+export function getShamCashNumber(): string {
+  return SHAM_CASH_NUMBER;
 }
 
 // إرسال رسالة لمشرف واحد
@@ -127,6 +140,7 @@ export async function notifyWithdrawalRequest(data: {
   shamCashNumber: string;
   timestamp: string;
 }): Promise<void> {
+  const currentShamCash = getShamCashNumber();
   const message = `
 💸 <b>طلب سحب أرباح</b>
 ━━━━━━━━━━━━━━━━━━━━
@@ -134,7 +148,8 @@ export async function notifyWithdrawalRequest(data: {
 🆔 <b>معرّف المستخدم:</b> ${data.userId}
 💰 <b>مبلغ السحب:</b> ${data.amount.toLocaleString("ar-SY")} ل.س.ج
 🏦 <b>الرصيد الحالي:</b> ${data.walletBalance.toLocaleString("ar-SY")} ل.س.ج
-📲 <b>رقم شام كاش:</b> <code>${data.shamCashNumber}</code>
+📲 <b>رقم شام كاش للاستلام:</b> <code>${data.shamCashNumber}</code>
+📞 <b>رقم شام كاش الرسمي:</b> <code>${currentShamCash}</code>
 🕐 <b>التوقيت:</b> ${data.timestamp}
 ━━━━━━━━━━━━━━━━━━━━
 ⚠️ <b>يرجى مراجعة الطلب والرد فوراً</b>
