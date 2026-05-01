@@ -652,8 +652,162 @@ export async function notifyAllAdmins(text: string): Promise<void> {
   }
 }
 
+let isPolling = false;
+let pollingInterval: NodeJS.Timeout | null = null;
+
+// بدء استقبال التحديثات من تيليجرام (Polling)
+export async function startBot(): Promise<void> {
+  if (isPolling) {
+    console.log("⚠️ Bot is already running");
+    return;
+  }
+
+  isPolling = true;
+  console.log("🤖 Starting Telegram Admin Bot with Polling...");
+
+  // حذف أي webhook موجود
+  await telegramRequest("deleteWebhook", {});
+
+  // بدء polling كل 2 ثانية
+  let offset = 0;
+
+  const poll = async () => {
+    if (!isPolling) return;
+
+    try {
+      const result = await telegramRequest("getUpdates", {
+        offset: offset,
+        timeout: 30,
+      });
+
+      if (result?.ok && result.result) {
+        for (const update of result.result) {
+          offset = Math.max(offset, update.update_id + 1);
+
+          // معالجة الرسائل النصية
+          if (update.message) {
+            await processMessage(update.message);
+          }
+
+          // معالجة ضغطات الأزرار
+          if (update.callback_query) {
+            await handleCallbackQuery(update.callback_query);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Polling error:", error);
+    }
+
+    // الاستمرار في polling
+    if (isPolling) {
+      setTimeout(poll, 1000);
+    }
+  };
+
+  poll();
+}
+
+// إيقاف البوت
+export function stopBot(): void {
+  isPolling = false;
+  console.log("🛑 Bot stopped");
+}
+
+// معالجة الرسائل الواردة
+async function processMessage(message: any): Promise<void> {
+  const chatId = message.chat.id.toString();
+  const userId = message.from.id.toString();
+  const text = message.text || "";
+
+  // التحقق من أن المرسل مشرف
+  if (!ADMIN_IDS.includes(userId)) {
+    // تجاهل رسائل غير المشرفين أو يمكن إضافة رد
+    return;
+  }
+
+  // معالجة الأوامر
+  if (text.startsWith("/")) {
+    await handleCommand(chatId, userId, text);
+  } else {
+    // معالجة الرسائل العادية (للرد في المحادثات أو إدخال البيانات)
+    await handleUserMessage(message);
+  }
+}
+
+// معالجة الأوامر
+async function handleCommand(chatId: string, userId: string, command: string): Promise<void> {
+  const cmd = command.toLowerCase().trim();
+
+  switch (cmd) {
+    case "/start":
+    case "/menu":
+    case "/القائمة":
+      await showAdminMenu(chatId);
+      break;
+
+    case "/products":
+    case "/منتجات":
+      await showProductsMenu(chatId);
+      break;
+
+    case "/charges":
+    case "/شحن":
+      await showChargesList(chatId);
+      break;
+
+    case "/withdrawals":
+    case "/سحب":
+      await showWithdrawalsList(chatId);
+      break;
+
+    case "/conversations":
+    case "/محادثات":
+      await showConversationsList(chatId);
+      break;
+
+    case "/settings":
+    case "/إعدادات":
+      await showSettingsMenu(chatId);
+      break;
+
+    case "/stats":
+    case "/احصائيات":
+      await showStats(chatId);
+      break;
+
+    case "/help":
+    case "/مساعدة":
+      const helpText = `
+📚 <b>مساعدة - أوامر بوت الإدارة</b>
+━━━━━━━━━━━━━━━━━━━━
+<b>الأوامر المتاحة:</b>
+
+/start - عرض القائمة الرئيسية
+/products - إدارة المنتجات
+/charges - طلبات الشحن
+/withdrawals - طلبات السحب
+/conversations - محادثات المستخدمين
+/settings - إعدادات النظام
+/stats - إحصائيات النظام
+
+<b>أيضاً يمكنك استخدام الأزرار التفاعلية!</b>
+━━━━━━━━━━━━━━━━━━━━
+🛒 <i>سوق الشام الإلكتروني</i>
+`;
+      await sendMessage(chatId, helpText);
+      break;
+
+    default:
+      await sendMessage(chatId, "❌ أمر غير معروف. استخدم /help للمساعدة.");
+  }
+}
+
 export async function initAdminBot(): Promise<void> {
   console.log("🎛️ Initializing Admin Bot...");
+  
+  // بدء البوت للاستماع للتحديثات
+  await startBot();
   
   // إرسال رسالة ترحيبية للمشرفين
   for (const adminId of ADMIN_IDS) {
@@ -662,18 +816,26 @@ export async function initAdminBot(): Promise<void> {
 ━━━━━━━━━━━━━━━━━━━━
 مرحباً بك في لوحة التحكم المتقدمة
 
-يمكنك الآن:
+<b>الأوامر السريعة:</b>
+/start - فتح القائمة الرئيسية
+/help - عرض المساعدة
+
+<b>الميزات المتاحة:</b>
 ✅ إدارة المنتجات (إضافة، تعديل، حذف)
 ✅ الموافقة على طلبات الشحن والسحب
 ✅ محادثة المستخدمين بشكل فردي
-✅ تغيير إعدادات النظام
+✅ تغيير إعدادات النظام (بما فيها رقم شام كاش)
 ✅ متابعة إحصائيات المتجر
 
-استخدم الأمر /start لفتح القائمة الرئيسية
+<b>استخدم الأمر /start لفتح القائمة الرئيسية</b>
 ━━━━━━━━━━━━━━━━━━━━
 🛒 <i>سوق الشام الإلكتروني</i>
 `;
-    await sendMessage(adminId, welcomeText);
+    
+    const keyboard: any[][] = [
+      [{ text: "🎛️ فتح لوحة التحكم", callback_data: "admin_menu" }]
+    ];
+    await sendInlineKeyboard(adminId, welcomeText, keyboard);
   }
 }
 
