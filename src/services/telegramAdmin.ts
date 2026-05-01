@@ -1,3 +1,11 @@
+import { 
+  approveDeposit, 
+  rejectDeposit, 
+  approveWithdrawal as dbApproveWithdrawal, 
+  rejectWithdrawal as dbRejectWithdrawal,
+  getUserBalance 
+} from './mockDB';
+
 // ======================================================
 // Telegram Admin Bot Service - خدمة بوت إدارة المشرفين
 // نظام إشراف كامل لإدارة المتجر عبر تيليجرام
@@ -731,15 +739,18 @@ async function approveCharge(chatId: string, chargeId: string, isDouble: boolean
     return;
   }
 
+  // استخدام دالة قاعدة البيانات لتحديث الرصيد فعلياً
+  const success = approveDeposit(chargeId, isDouble);
+  
+  if (!success) {
+    await sendMessage(chatId, "❌ حدث خطأ أثناء معالجة الطلب");
+    return;
+  }
+
   const finalAmount = isDouble ? charge.data.amount * 2 : charge.data.amount;
   
-  // تحديث حالة الطلب
+  // تحديث حالة الطلب محلياً
   charge.status = "approved";
-  
-  // حفظ في localStorage للمزامنة مع الموقع
-  if (typeof window !== "undefined") {
-    localStorage.setItem(`charge_${chargeId}`, JSON.stringify(charge));
-  }
   
   // إشعار المستخدم بالموافقة
   const userNotifyText = `
@@ -758,7 +769,10 @@ ${isDouble ? `🎁 <b>المكافأة:</b> ${(charge.data.amount).toLocaleStrin
     console.error("Failed to notify user:", e);
   }
 
-  await sendMessage(chatId, `✅ <b>تمت الموافقة بنجاح!</b>\n\nالمستخدم: ${charge.data.userName}\nالمبلغ المضاف: ${finalAmount.toLocaleString("ar-SY")} ل.س.ج\n${isDouble ? '(مع المكافأة 2x)' : ''}`);
+  // جلب الرصيد الجديد
+  const newBalance = getUserBalance(charge.data.userId);
+  
+  await sendMessage(chatId, `✅ <b>تمت الموافقة بنجاح!</b>\n\nالمستخدم: ${charge.data.userName}\nالمبلغ المضاف: ${finalAmount.toLocaleString("ar-SY")} ل.س.ج\nالرصيد الجديد: ${newBalance.toLocaleString("ar-SY")} ل.س.ج\n${isDouble ? '(مع المكافأة 2x)' : ''}`);
   
   await showChargesList(chatId);
 }
@@ -770,7 +784,13 @@ async function rejectCharge(chatId: string, chargeId: string): Promise<void> {
     return;
   }
 
-  charge.status = "rejected";
+  // استخدام دالة قاعدة البيانات لرفض الشحن
+  const success = rejectDeposit(chargeId);
+  
+  if (!success) {
+    await sendMessage(chatId, "❌ حدث خطأ أثناء معالجة طلب الشحن");
+    return;
+  }
   
   // إشعار المستخدم بالرفض
   const userNotifyText = `
@@ -804,13 +824,14 @@ async function approveWithdrawal(chatId: string, withdrawalId: string): Promise<
     return;
   }
 
-  withdrawal.status = "approved";
+  // استخدام دالة قاعدة البيانات للموافقة على السحب
+  const success = dbApproveWithdrawal(withdrawalId);
   
-  // حفظ في localStorage للمزامنة مع الموقع
-  if (typeof window !== "undefined") {
-    localStorage.setItem(`withdraw_${withdrawalId}`, JSON.stringify(withdrawal));
+  if (!success) {
+    await sendMessage(chatId, "❌ حدث خطأ أثناء معالجة طلب السحب");
+    return;
   }
-  
+
   // إشعار المستخدم بالموافقة
   const userNotifyText = `
 ✅ <b>تم الموافقة على طلب السحب!</b>
@@ -840,14 +861,21 @@ async function rejectWithdrawal(chatId: string, withdrawalId: string): Promise<v
     return;
   }
 
-  withdrawal.status = "rejected";
+  // استخدام دالة قاعدة البيانات لرفض السحب (سيعيد المبلغ للرصيد)
+  const success = dbRejectWithdrawal(withdrawalId);
   
+  if (!success) {
+    await sendMessage(chatId, "❌ حدث خطأ أثناء معالجة طلب السحب");
+    return;
+  }
+
   // إشعار المستخدم بالرفض
   const userNotifyText = `
 ❌ <b>تم رفض طلب السحب</b>
 ━━━━━━━━━━━━━━━━━━━━
 💰 <b>مبلغ السحب:</b> ${withdrawal.data.amount.toLocaleString("ar-SY")} ل.س.ج
 ━━━━━━━━━━━━━━━━━━━━
+تم إعادة المبلغ إلى رصيدك.
 يرجى التحقق من رصيدك أو التواصل مع الدعم للمزيد من المعلومات.
 `;
   
@@ -857,7 +885,7 @@ async function rejectWithdrawal(chatId: string, withdrawalId: string): Promise<v
     console.error("Failed to notify user:", e);
   }
 
-  await sendMessage(chatId, `❌ <b>تم رفض طلب السحب</b>\n\nالمستخدم: ${withdrawal.data.userName}`);
+  await sendMessage(chatId, `❌ <b>تم رفض طلب السحب</b>\n\nالمستخدم: ${withdrawal.data.userName}\nتم إعادة المبلغ للرصيد.`);
   
   await showWithdrawalsList(chatId);
 }
