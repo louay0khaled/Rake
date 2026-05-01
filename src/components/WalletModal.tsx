@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { X, Wallet, ArrowUpRight, ArrowDownLeft, Copy, CheckCircle, AlertCircle, MessageCircle } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 import { notifyWalletChargeRequest, notifyWithdrawalRequest, getShamCashNumber } from "../services/telegram";
+import { addPendingRequest, handleUserMessage as handleAdminMessage } from "../services/telegramAdmin";
 import toast from "react-hot-toast";
 
 interface WalletModalProps {
@@ -53,6 +54,7 @@ const WalletModal: React.FC<WalletModalProps> = ({ onClose }) => {
     });
 
     try {
+      // إرسال الإشعار للمشرفين
       await notifyWalletChargeRequest({
         userId: user.id,
         userName: user.name,
@@ -60,6 +62,21 @@ const WalletModal: React.FC<WalletModalProps> = ({ onClose }) => {
         transactionId: transactionId.trim(),
         timestamp,
       });
+
+      // إضافة الطلب إلى قائمة الانتظار للمزامنة مع بوت المشرفين
+      const chargeRequest = {
+        id: `charge_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        type: "charge" as const,
+        data: {
+          userId: user.id,
+          userName: user.name,
+          amount,
+          transactionId: transactionId.trim(),
+        },
+        status: "pending" as const,
+        timestamp,
+      };
+      addPendingRequest(chargeRequest);
 
       toast.success(
         "تم إرسال طلب الشحن للمشرفين! سيتم تأكيده خلال دقائق ✅",
@@ -104,6 +121,7 @@ const WalletModal: React.FC<WalletModalProps> = ({ onClose }) => {
     });
 
     try {
+      // إرسال الإشعار للمشرفين
       await notifyWithdrawalRequest({
         userId: user.id,
         userName: user.name,
@@ -112,6 +130,22 @@ const WalletModal: React.FC<WalletModalProps> = ({ onClose }) => {
         shamCashNumber: shamCashNumber.trim(),
         timestamp,
       });
+
+      // إضافة الطلب إلى قائمة الانتظار للمزامنة مع بوت المشرفين
+      const withdrawRequest = {
+        id: `withdraw_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        type: "withdraw" as const,
+        data: {
+          userId: user.id,
+          userName: user.name,
+          amount,
+          walletBalance: user.walletBalance,
+          shamCashNumber: shamCashNumber.trim(),
+        },
+        status: "pending" as const,
+        timestamp,
+      };
+      addPendingRequest(withdrawRequest);
 
       toast.success(
         "تم إرسال طلب السحب! سيتواصل معك المشرفون قريباً 💸",
