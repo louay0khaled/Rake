@@ -1,204 +1,49 @@
-```gitignore
+```
+# Build artifacts
+dist/
+build/
+
 # Dependencies
 node_modules/
 
-# Build outputs
-dist/
-build/
-.next/
-.nuxt/
-public/dist/
-out/
+# Logs and temp files
+*.log
+*.tmp
 
-# Environment variables
+# Environment
 .env
 .env.local
-.env.*
-!.env.example
+*.env.*
+
+# Editors
+.vscode/
+.idea/
 
 # Python
 __pycache__/
-*.py[cod]
-*$py.class
+*.pyc
+*.pyo
+*.pyd
+
+# Compiled files
+*.class
+*.o
+*.obj
+*.exe
+*.dll
 *.so
-.Python
-env/
-venv/
-.venv/
-.venv*/
-.python-version
-.pytest_cache/
-.mypy_cache/
-.coverage
-coverage/
+*.a
+*.out
 
-# Node.js
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-node_modules/
-dist/
-build/
-.nyc_output/
-coverage/
-.nuxt/
-.next/
-.cache/
-
-# Logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# OS generated files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-desktop.ini
-
-# IDE specific
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# Temporary files
-*.tmp
-*.temp
-.DS_Store
-Thumbs.db
-
-# TypeScript
-tsconfig.tsbuildinfo
-*.tsbuildinfo
-
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
-
-# Coverage directory used by tools like istanbul
-coverage/
-
-# Compiled JavaScript
-*.min.js
-*.bundle.js
-
-# Webpack
-webpack.config.js
-webpack.config.babel.js
-
-# Vite
-.vite/
-
-# Svelte
-.svelte-kit/
-
-# Next.js
-.next/
-out/
-
-# Nuxt.js
-.nuxt/
-.output/
-.dist/
-
-# Electron
-release/
-dist_electron/
-
-# Bower
-bower_components/
-
-# Grunt
-.grunt
-
-# Gulp
-gulp-cache/
-
-# Jspm
-jspm_packages/
-
-# CoffeeScript
-coffeelint.json
-
-# PhantomJS
-phantomjs-prebuilt-*.tar.gz
-
-# Sass
-.sass-cache/
-
-# Yarn
-yarn-error.log
-.yarn-integrity
-node_modules/.yarn-metadata.json
-node_modules/.cache/
-node_modules/.bin/
-
-# Lock files
-package-lock.json
-yarn.lock
-
-# Docker
-.docker/
-
-# Git
-.git/
-
-# GitHub
-.github/
-
-# GitLab
-.gitlab/
-
-# Temporary folder for generated images
-.temp-images/
-
-# Wallet related temporary files
-wallet-temp/
-wallet-cache/
-
-# Telegram bot temporary files
-telegram-data/
-bot-sessions/
-
-# Modal component cache
-.modal-cache/
-
-# Service worker cache
-.sw-cache/
-
-# Browser extensions
-*.crx
-*.xpi
-*.safariextz
-
-# Backup files
-*.bak
-*.backup
-*.orig
-*.rej
-*~
-.#*
-%*%
-._*
-
-# Compressed archives
+# Compression
 *.zip
-*.tar
 *.gz
+*.tar
 *.tgz
-*.rar
-*.7z
 *.bz2
 *.xz
+*.7z
+*.rar
 *.zst
 *.lz4
 *.lzh
@@ -209,383 +54,19 @@ bot-sessions/
 *.Z
 *.lz
 *.lzo
-*.tar.gz
-*.tar.bz2
-*.tar.xz
-*.tar.zst
 
-# Database
-*.db
-*.db-journal
-*.sqlite
-*.sqlite3
+# Coverage
+coverage/
+htmlcov/
+.coverage
 
-# Certificate
-*.crt
-*.key
-*.pem
-*.p12
-*.pfx
-
-# System files
-.DS_Store
-Thumbs.db
-ehthumbs.db
-Icon?
-apidoc/
-apidocs/
-doc/
-docs/
-
-# Configuration files that might contain secrets
-config/local.json
-config/production.json
-secrets.json
-.env.production
-.env.development
-.env.test
-.env.staging
-
-# Development
-.vs/
-*.sublime-workspace
-*.tmproj
-nbproject/
-
-# Testing
-test-report.xml
-test-results/
-junit.xml
-
-# CI/CD
-.circleci/
-.travis.yml
-.drone.yml
-.gitlab-ci.yml
-.semaphore/
-shippable.yml
-wercker.yml
-.codeclimate.yml
-.landscape.yml
-.codacy-coverage.yml
-.coveralls.yml
-.appveyor.yml
-.buildkite/
-.codecov.yml
-.sentryclirc
-.reviewdog.yml
-
-# Mobile
-*.ipa
-*.apk
-*.aab
-*.aabx
-*.apks
-*.apkm
-*.xapk
-*.apex
-
-# Executables
-*.exe
-*.dll
-*.so
-*.dylib
-*.jar
-*.war
-*.ear
-*.class
-*.o
-*.a
-*.lib
-*.obj
-*.out
-*.app
-*.dmg
-*.pkg
-*.msi
-*.deb
-*.rpm
-*.snap
-
-# Generated files
-generated/
-.autotools/
-autom4te.cache/
-.libs/
-aclocal.m4
-compile
-config.guess
-config.sub
-configure
-depcomp
-install-sh
-ltmain.sh
-missing
-mkinstalldirs
-ylwrap
-
-# Documentation
-doc/api/
-
-# Editor-specific
-*~
-*.swp
-*.swo
-Session.vim
-.netrwhist
-syntax/
-ftplugin/
-indent/
-autoload/
-plugin/
-
-# Vim
-[._]*.s[a-w][a-z]
-[._]s[a-w][a-z]
-*.un~
-Session.vim
-.netrwhist
-*~
-# swap
-.[^.].sw[a-p]
-..sw[a-p]
-# backup
-*.bak
-*.BAK
-*.bk
-*.old
-*.OLD
-*.orig
-*.ORIG
-*.rej
-*.orig.*
-*.rej.*
-
-# Emacs
-*~
-\#*\#
-/.emacs.desktop
-/.emacs.desktop.lock
-*.elc
-auto-save-list
-tramp
-.\#*
-# Org-mode
-*.org-[0-9]*.html
-*.txt~
-
-# Spacemacs
-.spacemacs
-.spacemacs.d/
-
-# Kate
-*.kate-swp
-
-# NetBeans
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-
-# Code::Blocks
-*.depend
-*.layout
-*.cbp
-
-# Dev-C++
-*.dev
-
-# Qt Creator
-*.pro.user
-*.pro.user.*
-*.qbs.user
-*.qbs.user.*
-*.moc
-*.moc.cpp
-*.qm
-*.prl
-*.pri
-*.orig
-*.rej
-*.bak
-
-# Visual Studio
-*.VC.db
-*.VC.VC.opendb
-*.opensdf
-*.sdf
-*.ilk
-*.aps
-*.tlog
-*.plg
-*.vspscc
-*.vssscc
-*_i.c
-*_p.c
-*.tlb
-*.tlh
-*.bak
-*.cache
-*.obj
-*.cod
-*.pdb
-*.pgc
-*.pgd
-*.rsp
-*.sbr
-*.tlb
-*.tli
-*.tlh
-*.tmp
-*.tmp_proj
-*_wpftmp.csproj
-*.log
-*.vsmdi
-*.testlog
-*.trx
-*.aps
-*.vugen
-[Bb]uild/
-[Bb]in/
-[Oo]bj/
-[Tt]est[Rr]esult*/
-[Bb]ackup*/
-*.VC.db
-*.VC.VC.opendb
-
-# Visual Studio Code
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-*.code-workspace
-
-# JetBrains
-*.iml
-*.ipr
-*.iws
-*.jar
-*.swf
-*.swc
-.idea/
-*.iws
-*.iml
-*.ipr
-out/
+# Gradle
+.gradle/
 target/
 
-# Eclipse
-.metadata
-bin/
-tmp/
-*.tmp
-*.bak
-*.swp
-*~.nib
-local.properties
-.settings/
-.loadpath
-.recommenders
-.externalToolBuilders/
-*.launch
-.cproject
-.project
-.classpath
-.factorypath
-.gradle
-.gradle/
-!gradle/
-!gradle-wrapper.jar
-!gradlew
-!gradlew.bat
-.gradle-wrapper/
-.gradle-wrapper.properties
-.gradle-wrapper.jar
-.gradle-wrapper/
+# MyPy
+.mypy_cache/
 
-# Android Studio
-*.iml
-*.ipr
-*.iws
-*.suo
-*.csproj
-*.csproj.user
-*.vbproj
-*.vbproj.user
-*.userosscache
-*.sln.docstates
-**/platforms/*/build/
-**/platforms/*/platform_www/
-**/platforms/*/plugins/
-**/platforms/*/cordova/node_modules/
-**/platforms/*/cordova/build/
-**/platforms/*/cordova/lib/
-**/platforms/*/cordova/bin/
-**/platforms/*/cordova/scripts/
-**/platforms/*/cordova/node_modules/
-**/platforms/*/cordova/build/
-**/platforms/*/cordova/lib/
-**/platforms/*/cordova/bin/
-**/platforms/*/cordova/scripts/
-**/platforms/*/cordova/node_modules/
-**/platforms/*/cordova/build/
-**/platforms/*/cordova/lib/
-**/platforms/*/cordova/bin/
-**/platforms/*/cordova/scripts/
-**/platforms/*/cordova/node_modules/
-**/platforms/*/cordova/build/
-**/platforms/*/cordova/lib/
-**/platforms/*/cordova/bin/
-**/platforms/*/cordova/scripts/
-**/platforms/*/cordova/node_modules/
-**/platforms/*/cordova/build/
-**/platforms/*/cordova/lib/
-**/platforms/*/cordova/bin/
-**/platforms/*/cordova/scripts/
-**/platforms/*/cordova/node_modules/
-**/platforms/*/cordova/build/
-**/platforms/*/cordova/lib/
-**/platforms/*/cordova/bin/
-**/platforms/*/cordova/scripts/
-**/platforms/*/cordova/node_modules/
-**/platforms/*/cordova/build/
-**/platforms/*/cordova/lib/
-**/platforms/*/cordova/bin/
-**/platforms/*/cordova/scripts/
-**/platforms/*/cordova/node_modules/
-**/platforms/*/cordova/build/
-**/platforms/*/cordova/lib/
-**/platforms/*/cordova/bin/
-**/platforms/*/cordova/scripts/
-**/platforms/*/cordova/node_modules/
-**/platforms/*/cordova/build/
-**/platforms/*/cordova/lib/
-**/platforms/*/cordova/bin/
-**/platforms/*/cordova/scripts/
-**/platforms/*/cordova/node_modules/
-**/platforms/*/cordova/build/
-**/platforms/*/cordova/lib/
-**/platforms/*/cordova/bin/
-**/platforms/*/cordova/scripts/
-**/platforms/*/cordova/node_modules/
-**/platforms/*/cordova/build/
-**/platforms/*/cordova/lib/
-**/platforms/*/cordova/bin/
-**/platforms/*/cordova/scripts/
-**/platforms/*/cordova/node_modules/
-**/platforms/*/cordova/build/
-**/platforms/*/cordova/lib/
-**/platforms/*/cordova/bin/
-**/platforms/*/cordova/scripts/
-**/platforms/*/cordova/node_modules/
-**/platforms/*/cordova/build/
-**/platforms/*/cordova/lib/
-**/platforms/*/cordova/bin/
-**/platforms/*/cordova/scripts/
-**/platforms/*/cordova/node_modules/
-**/platforms/*/cordova/build/
-**/platforms/*/cordova/lib/
-**/platforms/*/cordova/bin......
+# PyTest
+.pytest_cache/
 ```

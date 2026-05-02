@@ -6,6 +6,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { notifyNewRegistration, notifyUserLogin } from "../services/telegram";
+import { getUserBalance } from "../services/mockDB";
 
 export interface User {
   id: string;
@@ -190,9 +191,13 @@ export const useAuthStore = create<AuthState>()(
       updateWalletBalance: (amount) => {
         set((state) => {
           if (!state.user) return state;
+          // الحصول على الرصيد المحدث من قاعدة البيانات المحلية لضمان المزامنة
+          const dbBalance = getUserBalance(state.user.id);
+          const newBalance = dbBalance > 0 ? dbBalance : state.user.walletBalance + amount;
+          
           const updatedUser = {
             ...state.user,
-            walletBalance: state.user.walletBalance + amount,
+            walletBalance: newBalance,
           };
           // تحديث في قاعدة البيانات المحلية أيضاً
           const updatedRegistered = { ...state.registeredUsers };

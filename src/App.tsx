@@ -1,5 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Toaster } from "react-hot-toast";
+import { useAuthStore } from "./store/authStore";
+import { getUserBalance } from "./services/mockDB";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import AuthModal from "./components/AuthModal";
@@ -17,6 +19,49 @@ const App: React.FC = () => {
   const [showAuth, setShowAuth] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const { user } = useAuthStore();
+
+  // مزامنة الرصيد مع قاعدة البيانات المحلية عند تحميل التطبيق وعند تغيير المستخدم
+  useEffect(() => {
+    if (!user) return;
+
+    // دالة لتحديث الرصيد من قاعدة البيانات
+    const syncBalance = () => {
+      const dbBalance = getUserBalance(user.id);
+      if (dbBalance > 0) {
+        console.log(`[App] Balance synced from DB: ${dbBalance}`);
+      }
+    };
+
+    // المزامنة الأولية
+    syncBalance();
+
+    // الاستماع لأحداث تحديث الرصيد من بوت تيليجرام
+    const handleBalanceUpdate = (event: CustomEvent<{ userId: string; newBalance: number }>) => {
+      if (event.detail.userId === user.id) {
+        console.log(`[App] Balance updated event received: ${event.detail.newBalance}`);
+        syncBalance();
+      }
+    };
+
+    window.addEventListener('balanceUpdated' as any, handleBalanceUpdate as any);
+
+    // الاستماع للتخزين المحلي (للمزامنة بين التبويبات)
+    const handleStorageChange = () => {
+      syncBalance();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    // فحص دوري كل 5 ثوانٍ لضمان المزامنة
+    const intervalId = setInterval(syncBalance, 5000);
+
+    return () => {
+      window.removeEventListener('balanceUpdated' as any, handleBalanceUpdate as any);
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(intervalId);
+    };
+  }, [user?.id]);
 
   const handleNavigate = (page: string) => {
     setCurrentPage(page as Page);
