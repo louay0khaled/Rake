@@ -120,8 +120,8 @@ export function approveWithdrawal(requestId: string): boolean {
   const request = withdrawals[index];
   request.status = 'approved';
   
-  // خصم المبلغ من الرصيد (اختياري، عادة يخصم فور طلب السحب)
-  // هنا نفترض أنه خصم مسبقاً، فقط نغير الحالة
+  // خصم المبلغ من الرصيد عند الموافقة على السحب
+  updateUserBalance(request.userId, request.amount, false); // false = خصم
   
   saveToDB(DB_KEYS.WITHDRAWALS, withdrawals);
   return true;
